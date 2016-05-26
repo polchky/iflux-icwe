@@ -1,0 +1,16 @@
+{
+  "name": "raspberry",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.13.4",
+    "serial": "0.0.9",
+    "serialport": "^3.1.2"
+  }
+}
