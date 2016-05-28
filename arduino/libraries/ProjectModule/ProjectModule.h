@@ -14,7 +14,7 @@ class ProjectModule
 			void addCommit(Commit *commit);
 			void update();
 			void stop();
-			void setRingDisplay(uint32_t colors[]);
+			void setRingDisplay(uint32_t colors[], int indexes[]);
 			void playCommits(unsigned long start, uint32_t color, int nSequences, int ringPixels[], int nRingPixels);
 			void test(int n);
 			void setBrightness(int stripBrightness, int ringBrightness);
@@ -55,13 +55,14 @@ void ProjectModule::addCommit(Commit *commit)
 
 void ProjectModule::update()
 {
-        _millis = millis();
-	int index = 0;
 	int size = _commits.size();
-	while (index < size){
-		_commits.get(index)->update();
-		index++;
+	if(size == 0) return;
+	
+	if(_commits.get(0)->isFinished()){
+		_commits.remove(0);
+		if(size == 1) return;
 	}
+	_commits.get(0)->update(_strip, _ring);
 }
 
 void ProjectModule::stop()
@@ -74,10 +75,10 @@ int ProjectModule::offset(int pos)
     return (pos + _ringOffset) % _ring.numPixels();
 }
 
-void ProjectModule::setRingDisplay(uint32_t colors[])
+void ProjectModule::setRingDisplay(uint32_t colors[], int indexes[])
 {
 	for (int i=0; i<_ring.numPixels(); i++) {
-		_ring.setPixelColor(offset(i), colors[i]);
+		_ring.setPixelColor(offset(i), colors[indexes[i]]);
 	}
 	_ring.show();
 }

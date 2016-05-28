@@ -12,10 +12,15 @@ class Commit{
 		int _ringLength;
 		int _stripLength;
 		int _nSequences;
+		unsigned long _millis;
+		unsigned long _step;
+		int offset(int pos);
+		
 	public:
 		Commit(unsigned long start, uint32_t color, int ringIndex, int ringLength, int stripLength, int nSequences);
 		void update();
 		void update(Adafruit_NeoPixel strip, Adafruit_NeoPixel ring);
+		boolean isFinished();
 };
 
 Commit::Commit(unsigned long start, uint32_t color, int ringIndex, int ringLength, int stripLength, int nSequences)
@@ -26,19 +31,37 @@ Commit::Commit(unsigned long start, uint32_t color, int ringIndex, int ringLengt
 	_ringLength = ringLength;
 	_stripLength = stripLength;
 	_nSequences = nSequences;
-	delay(100);
+	_step = 200;
 }
 
 void Commit::update(Adafruit_NeoPixel strip, Adafruit_NeoPixel ring)
 {
-	
+	_millis = millis();
+	if(_millis < _start){
+		Serial.println("too soon!");
+		return;
+	}
+	int currentStep = (_millis - _start) / _step;
+	Serial.println("oki");
+	Serial.println(currentStep);
+	Serial.println(_millis);
+	Serial.println(_start);
 }
 
 void Commit::update()
 {
-	Serial.println("myNSequences: " + _nSequences);
+	
 }
 
+boolean Commit::isFinished()
+{
+	return false;
+}
+
+int Commit::offset(int pos)
+{
+	return _stripLength - 1 - pos;
+}
 
 
 #endif

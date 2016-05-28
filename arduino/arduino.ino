@@ -1,5 +1,6 @@
 #include <Adafruit_NeoPixel.h>
 #include <ProjectModule.h>
+#include <Commit.h>
 
 
 const int N_MODULES = 4;
@@ -29,7 +30,7 @@ uint32_t colors[7] = {
   16711935
 };
 
-Adafruit_NeoPixel pixels[10] = {
+Adafruit_NeoPixel pixels[8] = {
   Adafruit_NeoPixel(N_STRIP_LEDS, 4, NEO_GRB + NEO_KHZ800),
   Adafruit_NeoPixel(N_RING_LEDS, 5, NEO_GRB + NEO_KHZ800),
   Adafruit_NeoPixel(N_STRIP_LEDS, 7, NEO_GRB + NEO_KHZ800),
@@ -37,9 +38,7 @@ Adafruit_NeoPixel pixels[10] = {
   Adafruit_NeoPixel(N_STRIP_LEDS, 8, NEO_GRB + NEO_KHZ800),
   Adafruit_NeoPixel(N_RING_LEDS, 9, NEO_GRB + NEO_KHZ800),
   Adafruit_NeoPixel(N_STRIP_LEDS, 11, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(N_RING_LEDS, 10, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(N_RING_LEDS, 12, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(16, 13, NEO_GRB + NEO_KHZ800)
+  Adafruit_NeoPixel(N_RING_LEDS, 10, NEO_GRB + NEO_KHZ800)
 };
 
 ProjectModule modules[N_MODULES] = {
@@ -71,31 +70,24 @@ String getInputStringNextPart(){
 }
 
 void setup() {
-  uint32_t c[24] = {
-    colors[0],
-    colors[1],
-    colors[2],
-    colors[3],
-    colors[4],
-    colors[5],
-    colors[6],
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+  Commit *commit = new Commit(millis() + 3000, colors[0], 0, 3, 11, 3);
+  int c[24] = {
+    0,0,0,1,1,1,1,2,2,3,4,4,4,4,4,5,5,5,5,6,6,6,6,6
   };
   Serial.begin(9600);
   for (int i=0; i<4; i++){
     modules[i].init();
     modules[i].setBrightness(20, 20);
-    modules[i].setRingDisplay(c);
+    modules[i].setRingDisplay(colors, c);
   }
-  //modules[0].setRingDisplay(c);
+  modules[0].addCommit(commit);
   
 }
 
 void loop() {
+  Serial.println(millis());
   // Update each module
-  for (int i=0; i<N_MODULES; i++){
-    //modules[i].update();
-  }
+  modules[0].update();
 
 }
 
@@ -122,6 +114,7 @@ void executeOrder(){
 /**
  * Called each time something is sent through the serial
  */
+ /*
 void serialEvent() {
   if (Serial.available()) {
     inputString = Serial.readStringUntil('\n');
@@ -134,7 +127,7 @@ void serialEvent() {
     announceFaultyOrder();
   }
 }
-
+*/
 
 
 
