@@ -9,7 +9,7 @@
 class ProjectModule
 	{
 		public:
-			ProjectModule(int stripPin, int nStripLeds, int ringPin, int nRingLeds, int ringOffset);
+			ProjectModule(Adafruit_NeoPixel strip, Adafruit_NeoPixel ring, int ringOffset);
 			void init();
 			void addCommit(Commit *commit);
 			void update();
@@ -17,6 +17,7 @@ class ProjectModule
 			void setRingDisplay(uint32_t colors[]);
 			void playCommits(unsigned long start, uint32_t color, int nSequences, int ringPixels[], int nRingPixels);
 			void test(int n);
+			void setBrightness(int stripBrightness, int ringBrightness);
 		private:
 			int offset(int pos);
 
@@ -29,22 +30,22 @@ class ProjectModule
 			LinkedList<Commit*> _commits;
 	};
 
-ProjectModule::ProjectModule(int stripPin, int nStripLeds, int ringPin, int nRingLeds, int ringOffset)
+ProjectModule::ProjectModule(Adafruit_NeoPixel strip, Adafruit_NeoPixel ring, int ringOffset)
 {
-        _strip = Adafruit_NeoPixel(nStripLeds, stripPin, NEO_GRB + NEO_KHZ800);
-        _nStripLeds = nStripLeds;
-        _ring  = Adafruit_NeoPixel(nRingLeds,  ringPin,  NEO_GRB + NEO_KHZ800);
-        _nRingLeds = nRingLeds;
-        _ringOffset = ringOffset;
+	_strip = strip;
+	//_nStripLeds = nStripLeds;
+	_ring  = ring;
+	//_nRingLeds = nRingLeds;
+	_ringOffset = ringOffset;
 	_commits = LinkedList<Commit*>();
 }
 
 void ProjectModule::init()
 {
-        _strip.begin();
-        _strip.show();
-        _ring.begin();
-        _ring.show();
+	_strip.begin();
+	_strip.show();
+	_ring.begin();
+	_ring.show();
 }
 
 void ProjectModule::addCommit(Commit *commit)
@@ -70,20 +71,26 @@ void ProjectModule::stop()
 
 int ProjectModule::offset(int pos)
 {
-        return (pos + _ringOffset) % _nRingLeds;
+    return (pos + _ringOffset) % _ring.numPixels();
 }
 
 void ProjectModule::setRingDisplay(uint32_t colors[])
 {
-	        for (int i=0; i<_nRingLeds; i++) {
-			                _strip.setPixelColor(offset(i), colors[i]);
-					        }
-		        _ring.show();
+	for (int i=0; i<_ring.numPixels(); i++) {
+		_ring.setPixelColor(offset(i), colors[i]);
+	}
+	_ring.show();
 }
 
 void ProjectModule::playCommits(unsigned long start, uint32_t color, int nSequences, int ringPixels[], int nRingPixels)
 {
 
+}
+
+void ProjectModule::setBrightness(int stripBrightness, int ringBrightness)
+{
+	_strip.setBrightness(stripBrightness);
+	_ring.setBrightness(ringBrightness);
 }
 
 void ProjectModule::test(int n)
