@@ -1,56 +1,62 @@
 #include <Adafruit_NeoPixel.h>
-#include <ProjectModule.h>
-#include <Commit.h>
 
-
-const int N_MODULES = 4;
 const int N_STRIP_LEDS = 11;
-const int N_RING_LEDS = 24;
 
 const char ORDER_DELIMITER = '/';
-const String ORDER_SETUP = "s";
-const String ORDER_DEV = "d";
-const String ORDER_RESET = "r";
-const String ORDER_ADD = "a";
-const String ORDER_CHECK = "c";
+const char ORDER_RING = 'r'; // Used
+const char ORDER_SETUP = 's';
+const char ORDER_DEV = 'd'; // used
+const char ORDER_RESET = 'x';
+const char ORDER_ADD = 'a';
+const char ORDER_COMMIT = 'c'; // used
 
-const String STATE_IDLE = "IDLE";
-const String STATE_COMMIT = "COMMIT";
-const String STATE_SELECTING = "SELECTING";
-const String STATE_REPLAYING = "REPLAYING";
-const String STATE_RECEIVING = "RECEIVING";
+const int STATE_IDLE = 0; // Used
+const int STATE_COMMIT = 1; // used
+const int STATE_SELECTING = 2;
+const int STATE_REPLAYING = 3;
+const int STATE_RECEIVING = 4;
 
-uint32_t colors[7] = {
-  16711680,
-  65280,
-  255,
-  16777215,
-  65535,
-  16776960,
-  16711935
-};
+int BRIGHTNESS = 10;
 
-Adafruit_NeoPixel pixels[8] = {
-  Adafruit_NeoPixel(N_STRIP_LEDS, 4, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(N_RING_LEDS, 5, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(N_STRIP_LEDS, 7, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(N_RING_LEDS, 6, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(N_STRIP_LEDS, 8, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(N_RING_LEDS, 9, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(N_STRIP_LEDS, 11, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(N_RING_LEDS, 10, NEO_GRB + NEO_KHZ800)
-};
-
-ProjectModule modules[N_MODULES] = {
-  ProjectModule(pixels[0], pixels[1], 6),
-  ProjectModule(pixels[2], pixels[3], 6),
-  ProjectModule(pixels[4], pixels[5], 6),
-  ProjectModule(pixels[6], pixels[7], 6)
-};
-uint32_t myIndex = 0;
-
+int nDevs = 0;
+int currentState = STATE_IDLE;
 String inputString = "";
-String currentState = STATE_IDLE;
+unsigned long timer = 0;
+int dStep = 100;
+
+// Commit variables
+int commitDev;
+int nCommits;
+int commitModule;
+
+uint32_t colors[8] = {
+  0,
+  100,
+  25500,
+  6502500,
+  25600,
+  6502600,
+  6528000,
+  6528100
+};
+
+Adafruit_NeoPixel rings[4] = {
+  Adafruit_NeoPixel(24, 5, NEO_GRB + NEO_KHZ800),
+  Adafruit_NeoPixel(24, 6, NEO_GRB + NEO_KHZ800),
+  Adafruit_NeoPixel(24, 9, NEO_GRB + NEO_KHZ800),
+  Adafruit_NeoPixel(24, 10, NEO_GRB + NEO_KHZ800)
+};
+
+Adafruit_NeoPixel strips[4] = {
+  Adafruit_NeoPixel(N_STRIP_LEDS, 4, NEO_GRB + NEO_KHZ800),
+  Adafruit_NeoPixel(N_STRIP_LEDS, 7, NEO_GRB + NEO_KHZ800),
+  Adafruit_NeoPixel(N_STRIP_LEDS, 8, NEO_GRB + NEO_KHZ800),
+  Adafruit_NeoPixel(N_STRIP_LEDS, 11, NEO_GRB + NEO_KHZ800)  
+};
+
+Adafruit_NeoPixel weeks = Adafruit_NeoPixel(16, 13, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel months = Adafruit_NeoPixel(24, 12, NEO_GRB + NEO_KHZ800);
+
 
 void announceFaultyOrder(){
   Serial.println("resend");
@@ -69,65 +75,132 @@ String getInputStringNextPart(){
   } while(inputString.length() > 0);
 }
 
-void setup() {
-  Commit *commit = new Commit(millis() + 3000, colors[0], 0, 3, 11, 3);
-  int c[24] = {
-    0,0,0,1,1,1,1,2,2,3,4,4,4,4,4,5,5,5,5,6,6,6,6,6
-  };
-  Serial.begin(9600);
-  for (int i=0; i<4; i++){
-    modules[i].init();
-    modules[i].setBrightness(20, 20);
-    modules[i].setRingDisplay(colors, c);
+void switchState(int newState){
+  if(currentState == STATE_COMMIT){
+    clearStrips();
   }
-  modules[0].addCommit(commit);
-  
-}
-
-void loop() {
-  Serial.println(millis());
-  // Update each module
-  modules[0].update();
-
+  currentState = newState;
 }
 
 /**
  * Checks the integrity of the last received message
  */
 boolean checkInputString(){
+  inputString.remove(inputString.length() - 1, 1);
   if(inputString.charAt(0) != 'l') {
     return false;
   }
-  int originalLength = getInputStringNextPart().substring(1).toInt();
-  return originalLength == inputString.length();
+  String orderLength = getInputStringNextPart();
+  orderLength.remove(0,1);
+  return orderLength.toInt() == inputString.length();
 }
 
 void executeOrder(){
-  String orderType = getInputStringNextPart();
-  switch(1){
+  timer = 0;
+  char order = getInputStringNextPart().charAt(0);
+  switch(order){
+    case ORDER_RING:
+      setRingDisplay();
+      break;
+    case ORDER_DEV:
+      nDevs = getInputStringNextPart().toInt();
+      break;
+    case ORDER_COMMIT:
+      switchState(STATE_COMMIT);
+      break;
     default: 
-      announceFaultyOrder();
+      //announceFaultyOrder();
       break;
   }
 }
 
-/**
- * Called each time something is sent through the serial
- */
- /*
-void serialEvent() {
+void setRingDisplay(){
+  int ringIndex = getInputStringNextPart().toInt();
+  String positions = getInputStringNextPart();
+  for (int i=0; i<rings[ringIndex].numPixels(); i++){
+    rings[ringIndex].setPixelColor(i, colors[positions.substring(i, i+1).toInt()]);
+  }
+  rings[ringIndex].show();
+}
+
+void checkSerial() {
   if (Serial.available()) {
     inputString = Serial.readStringUntil('\n');
-    inputString.remove(inputString.length() - 1, 1);
-  }
-  if(checkInputString() == true){
-    executeOrder();
-    Serial.println("ok!");
-  } else {
-    announceFaultyOrder();
+    if(checkInputString() == true){
+      executeOrder();
+    } else {
+      announceFaultyOrder();
+    }
   }
 }
-*/
+
+
+void clearRings(){
+  for (int i=0; i<4; i++){
+    for (int j=0; j<rings[i].numPixels(); j++){
+      rings[i].setPixelColor(j,0);
+    }
+    rings[i].show();
+  }
+}
+
+/*
+ * Switches off all the strips and central rings pixels
+ */
+void clearStrips(){
+  for (int i=0; i<4; i++){
+    for (int j=0; j<strips[i].numPixels(); j++){
+      strips[i].setPixelColor(j, 0);
+    }
+    strips[i].show();
+  }
+}
+
+void doCommit(){
+  
+}
+
+void clearTimeRings(){  
+  for (int j=0; j<weeks.numPixels(); j++){
+    weeks.setPixelColor(j, 0);
+  }
+  weeks.show();
+  for (int j=0; j<months.numPixels(); j++){
+    months.setPixelColor(j, 0);
+  }
+  months.show();
+}
+
+void setup() {
+  Serial.begin(9600);
+  
+   for (int i=0; i<4; i++){
+    strips[i].begin();
+    strips[i].setBrightness(BRIGHTNESS);
+    strips[i].show();
+    
+    rings[i].begin();
+    rings[i].setBrightness(BRIGHTNESS);
+    rings[i].show();
+  }
+  //Serial.println("all set up");
+}
+
+void loop() {
+  checkSerial();
+  switch(currentState){
+    case STATE_COMMIT:
+      doCommit();
+      break;
+    default:
+      break;
+  }
+  
+}
+
+
+
+
 
 
 
