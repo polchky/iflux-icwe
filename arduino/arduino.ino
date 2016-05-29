@@ -21,13 +21,16 @@ int BRIGHTNESS = 20;
 int nDevs = 0;
 int currentState = STATE_IDLE;
 String inputString = "";
-unsigned long timer = 0;
-int dStep = 100;
+unsigned long orderStart;
+int deltaT = 50;
 
 // Commit variables
-int commitDev;
-int nCommits;
+uint32_t commitColor;
 int commitModule;
+int commitRingIndex;
+int commitRingLength;
+int nCommits;
+unsigned long commitEndTime;
 
 uint32_t colors[8] = {
   0,
@@ -77,9 +80,23 @@ String getInputStringNextPart(){
 }
 
 void switchState(int newState){
-  if(currentState == STATE_COMMIT){
-    clearStrips();
+  switch (newState){
+    case STATE_COMMIT:
+      clearStrips();
+      commitColor = colors[getInputStringNextPart().toInt()];
+      commitModule = getInputStringNextPart().toInt();
+      commitRingIndex = getInputStringNextPart().toInt();
+      commitRingLength = getInputStringNextPart().toInt();
+      nCommits = getInputStringNextPart().toInt();
+      commitEndTime = 2;
+      break;
+    case STATE_IDLE:
+      clearStrips();
+      clearTimeRings();
+      break;
+    default: break;
   }
+  
   currentState = newState;
 }
 
@@ -97,7 +114,7 @@ boolean checkInputString(){
 }
 
 void executeOrder(){
-  timer = 0;
+  orderStart = millis();
   char order = getInputStringNextPart().charAt(0);
   switch(order){
     case ORDER_RING:
@@ -158,6 +175,21 @@ void clearStrips(){
 }
 
 void doCommit(){
+  int cStep = (millis() - orderStart) / deltaT;
+  // Set strip
+  for (int i=0; i<strips[commitModule].numPixels(); i++){
+    if(((8 - i + cStep) % 12) / 4 == 0){
+      strips[commitModule].setPixelColor(i, commitColor);
+    } else{ 
+      strips[commitModule].setPixelColor(i, 0);
+    }
+  }
+  strips[commitModule].show();
+  // Set ring
+  
+}
+
+uint32_t illum(uint32_t color, int brightness){
   
 }
 
@@ -184,8 +216,14 @@ void setup() {
     rings[i].setBrightness(BRIGHTNESS);
     rings[i].show();
   }
+  months.begin();
+  months.setBrightness(BRIGHTNESS);
+  months.show();
+
+  weeks.begin();
+  weeks.setBrightness(BRIGHTNESS);
+  weeks.show();
   Serial.println("all set up");
-  strips[1].setPixelColor(1, 255);strips[1].show();
 }
 
 void loop() {
