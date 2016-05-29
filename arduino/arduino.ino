@@ -16,7 +16,7 @@ const int STATE_SELECTING = 2;
 const int STATE_REPLAYING = 3;
 const int STATE_RECEIVING = 4;
 
-int BRIGHTNESS = 10;
+int BRIGHTNESS = 20;
 
 int nDevs = 0;
 int currentState = STATE_IDLE;
@@ -41,21 +41,22 @@ uint32_t colors[8] = {
 };
 
 Adafruit_NeoPixel rings[4] = {
-  Adafruit_NeoPixel(24, 5, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(24, 6, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(24, 9, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(24, 10, NEO_GRB + NEO_KHZ800)
+  Adafruit_NeoPixel(24, 6, false, 5, NEO_GRB + NEO_KHZ800),
+  Adafruit_NeoPixel(24, 6, false, 6, NEO_GRB + NEO_KHZ800),
+  Adafruit_NeoPixel(24, 6, false, 9, NEO_GRB + NEO_KHZ800),
+  Adafruit_NeoPixel(24, 6, false, 10, NEO_GRB + NEO_KHZ800)
 };
 
 Adafruit_NeoPixel strips[4] = {
-  Adafruit_NeoPixel(N_STRIP_LEDS, 4, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(N_STRIP_LEDS, 7, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(N_STRIP_LEDS, 8, NEO_GRB + NEO_KHZ800),
-  Adafruit_NeoPixel(N_STRIP_LEDS, 11, NEO_GRB + NEO_KHZ800)  
+  Adafruit_NeoPixel(N_STRIP_LEDS, 0, true, 4, NEO_GRB + NEO_KHZ800),
+  Adafruit_NeoPixel(N_STRIP_LEDS, 0, true, 7, NEO_GRB + NEO_KHZ800),
+  Adafruit_NeoPixel(N_STRIP_LEDS, 0, true, 8, NEO_GRB + NEO_KHZ800),
+  Adafruit_NeoPixel(N_STRIP_LEDS, 0, true, 11, NEO_GRB + NEO_KHZ800)  
 };
 
-Adafruit_NeoPixel weeks = Adafruit_NeoPixel(16, 13, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel months = Adafruit_NeoPixel(24, 12, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel weeks = Adafruit_NeoPixel(16, 0, false, 13, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel months = Adafruit_NeoPixel(24, 0, false, 12, NEO_GRB + NEO_KHZ800);
+
 
 
 void announceFaultyOrder(){
@@ -183,7 +184,8 @@ void setup() {
     rings[i].setBrightness(BRIGHTNESS);
     rings[i].show();
   }
-  //Serial.println("all set up");
+  Serial.println("all set up");
+  strips[1].setPixelColor(1, 255);strips[1].show();
 }
 
 void loop() {
