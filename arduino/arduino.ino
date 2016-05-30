@@ -250,16 +250,7 @@ void doSelect(){
     analogLastValue = val;
   }
   
-  // Check for time threshold
-  if(millis() - analogLastMoved >= analogTimeThreshold){
-    if(val == 0){
-      switchState(STATE_IDLE);
-      Serial.println("idle");
-    } else{
-      Serial.println(selectedDev);
-      switchState(STATE_REPLAYING);
-    }
-  }
+
   
   // Display ring
   uint8_t nLeds = months.numPixels() / nDevs;
@@ -278,6 +269,17 @@ void doSelect(){
     }
   }
   months.show();
+  
+  // Check for time threshold
+  if(millis() - analogLastMoved >= analogTimeThreshold){
+    if(val == 0){
+      switchState(STATE_IDLE);
+      Serial.println("idle");
+    } else{
+      Serial.println(selectedDev);
+      switchState(STATE_REPLAYING);
+    }
+  }
   
 }
 
