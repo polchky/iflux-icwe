@@ -10,15 +10,15 @@ const char ORDER_RESET = 'x';
 const char ORDER_ADD = 'a';
 const char ORDER_COMMIT = 'c'; // used
 
-const int STATE_IDLE = 0; // Used
+const int STATE_IDLE = 0; // used
 const int STATE_COMMIT = 1; // used
-const int STATE_SELECTING = 2;
-const int STATE_REPLAYING = 3;
+const int STATE_SELECTING = 2; // used
+const int STATE_REPLAYING = 3; // used
 const int STATE_RECEIVING = 4;
 
 int BRIGHTNESS = 20;
 
-int nDevs = 0;
+int nDevs = 7;
 int currentState = STATE_IDLE;
 String inputString = "";
 unsigned long orderStart;
@@ -43,6 +43,13 @@ uint32_t colors[8] = {
   6528100
 };
 
+// Dev selection
+uint16_t analogLastValue;
+unsigned long analogLastChecked;
+unsigned long analogLastMoved;
+unsigned long analogTimeThreshold = 1000;
+uint8_t selectedDev;
+
 Adafruit_NeoPixel rings[4] = {
   Adafruit_NeoPixel(24, 6, false, 5, NEO_GRB + NEO_KHZ800),
   Adafruit_NeoPixel(24, 6, false, 6, NEO_GRB + NEO_KHZ800),
@@ -57,8 +64,8 @@ Adafruit_NeoPixel strips[4] = {
   Adafruit_NeoPixel(N_STRIP_LEDS, 0, true, 11, NEO_GRB + NEO_KHZ800)  
 };
 
-Adafruit_NeoPixel weeks = Adafruit_NeoPixel(16, 0, false, 13, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel months = Adafruit_NeoPixel(24, 0, false, 12, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel weeks = Adafruit_NeoPixel(16, 0, false, 12, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel months = Adafruit_NeoPixel(24, 0, false, 13, NEO_GRB + NEO_KHZ800);
 
 
 
@@ -89,6 +96,15 @@ void switchState(int newState){
       commitRingLength = getInputStringNextPart().toInt();
       nCommits = getInputStringNextPart().toInt();
       commitEndTime = 2;
+      break;
+    case STATE_SELECTING:
+      clearStrips();
+      clearWeeks();
+      clearRings();
+      analogLastMoved = millis();
+      break;
+    case STATE_REPLAYING:
+      Serial.println("replaying");
       break;
     case STATE_IDLE:
       clearStrips();
@@ -152,6 +168,12 @@ void checkSerial() {
   }
 }
 
+void clearWeeks(){
+  for (int i=0; i<weeks.numPixels(); i++){
+    weeks.setPixelColor(i, 0);
+  }
+  weeks.show();
+}
 
 void clearRings(){
   for (int i=0; i<4; i++){
@@ -189,8 +211,11 @@ void doCommit(){
   
 }
 
-uint32_t illum(uint32_t color, int brightness){
-  
+uint32_t illum(uint32_t color, uint8_t brightness){
+  return 
+    (color & (255 << 16)) / BRIGHTNESS * brightness +
+    (color & (255 << 8)) / BRIGHTNESS * brightness + 
+    (color & (255) ) / BRIGHTNESS;
 }
 
 void clearTimeRings(){  
@@ -204,9 +229,65 @@ void clearTimeRings(){
   months.show();
 }
 
+void checkAnalog(){
+  if(currentState == STATE_SELECTING || (analogLastChecked + 500) > millis()){
+    return;
+  }
+  analogLastChecked = millis();
+  uint16_t val = 1023 - analogRead(4);
+  if(val + 1 < analogLastValue ||  (val != 0) && val - 1 > analogLastValue){
+    switchState(STATE_SELECTING);
+  }
+  analogLastValue = val;
+}
+
+void doSelect(){
+  
+  // Read and store value
+  uint16_t val = 1023 - analogRead(4);
+  selectedDev = val * nDevs / 1024;
+  
+  if(val + 1 < analogLastValue || (val != 0) && val - 1 > analogLastValue){
+    analogLastMoved = millis();
+    analogLastValue = val;
+  }
+  
+  // Check for time threshold
+  if(millis() - analogLastMoved >= analogTimeThreshold){
+    Serial.println(val);
+    if(val == 0){
+      switchState(STATE_IDLE);
+      Serial.println("idle");
+    } else{
+      switchState(STATE_REPLAYING);
+      Serial.println(selectedDev);
+    }
+  }
+  
+  // Display ring
+  uint8_t nLeds = months.numPixels() / nDevs;
+  uint8_t remaining = months.numPixels() - (nLeds * nDevs);
+
+  for(int i=0; i<months.numPixels(); i++){
+    if(i < remaining){
+      months.setPixelColor(i, 0);
+    } else{
+      uint8_t dev = i / nLeds;
+      if(dev == selectedDev && val != 0) {
+        months.setPixelColor(i, illum(colors[dev], 255));
+      } else{
+        months.setPixelColor(i, colors[dev]);
+      }
+    }
+  }
+  months.show();
+  
+}
+
 void setup() {
   Serial.begin(9600);
-  
+  uint32_t test = 6528100;
+  Serial.println((test & (255)) );
    for (int i=0; i<4; i++){
     strips[i].begin();
     strips[i].setBrightness(BRIGHTNESS);
@@ -223,14 +304,20 @@ void setup() {
   weeks.begin();
   weeks.setBrightness(BRIGHTNESS);
   weeks.show();
+  analogLastValue = 1023 - analogRead(4);
+  analogLastChecked = millis();
   Serial.println("all set up");
 }
 
 void loop() {
   checkSerial();
+  checkAnalog();
   switch(currentState){
     case STATE_COMMIT:
       doCommit();
+      break;
+    case STATE_SELECTING:
+      doSelect();
       break;
     default:
       break;
