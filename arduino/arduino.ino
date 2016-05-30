@@ -16,7 +16,8 @@ const int STATE_SELECTING = 2; // used
 const int STATE_REPLAYING = 3; // used
 const int STATE_RECEIVING = 4;
 
-int BRIGHTNESS = 20;
+int BRIGHTNESS = 100;
+int DEFAULT_BRIGHTNESS = 100;
 
 int nDevs = 7;
 int currentState = STATE_IDLE;
@@ -32,21 +33,21 @@ int commitRingLength;
 int nCommits;
 unsigned long commitEndTime;
 
-uint32_t colors[8] = {
-  0,
+uint32_t colors[7] = {
   100,
-  25500,
-  6502500,
   25600,
-  6502600,
-  6528000,
-  6528100
+  6553600,
+  25700,
+  6553700,
+  6579200,
+  6579300
 };
+uint32_t black = 0;
 
 // Dev selection
 uint16_t analogLastValue;
-unsigned long analogLastChecked;
 unsigned long analogLastMoved;
+uint8_t analogThreshold = 10;
 unsigned long analogTimeThreshold = 1000;
 uint8_t selectedDev;
 
@@ -99,16 +100,17 @@ void switchState(int newState){
       break;
     case STATE_SELECTING:
       clearStrips();
-      clearWeeks();
+      clearRing("weeks");
       clearRings();
       analogLastMoved = millis();
       break;
     case STATE_REPLAYING:
-      Serial.println("replaying");
+      clearRing("months");
       break;
     case STATE_IDLE:
       clearStrips();
-      clearTimeRings();
+      clearRing("weeks");
+      clearRing("months");
       break;
     default: break;
   }
@@ -168,11 +170,18 @@ void checkSerial() {
   }
 }
 
-void clearWeeks(){
-  for (int i=0; i<weeks.numPixels(); i++){
-    weeks.setPixelColor(i, 0);
+void clearRing(String ringName){
+  if(ringName.equals("months")){
+    for (int i=0; i<months.numPixels(); i++){
+      months.setPixelColor(i, 0);
+    }
+    months.show();
+  } else {
+    for (int i=0; i<weeks.numPixels(); i++){
+      weeks.setPixelColor(i, 0);
+    }
+    weeks.show();
   }
-  weeks.show();
 }
 
 void clearRings(){
@@ -211,56 +220,44 @@ void doCommit(){
   
 }
 
-uint32_t illum(uint32_t color, uint8_t brightness){
+uint32_t illum(uint32_t color, uint8_t newBrightness, uint8_t oldBrightness = DEFAULT_BRIGHTNESS ){
   return 
-    (color & (255 << 16)) / BRIGHTNESS * brightness +
-    (color & (255 << 8)) / BRIGHTNESS * brightness + 
-    (color & (255) ) / BRIGHTNESS;
+    ((((color & (255 << 16)) >> 16) / oldBrightness * newBrightness) << 16) +
+    ((((color & (255 << 8)) >> 8) / oldBrightness * newBrightness) << 8) +
+    ((color & (255)) / oldBrightness * newBrightness) ;
 }
 
-void clearTimeRings(){  
-  for (int j=0; j<weeks.numPixels(); j++){
-    weeks.setPixelColor(j, 0);
-  }
-  weeks.show();
-  for (int j=0; j<months.numPixels(); j++){
-    months.setPixelColor(j, 0);
-  }
-  months.show();
-}
 
 void checkAnalog(){
-  if(currentState == STATE_SELECTING || (analogLastChecked + 500) > millis()){
+  if(currentState == STATE_SELECTING){
     return;
   }
-  analogLastChecked = millis();
   uint16_t val = 1023 - analogRead(4);
-  if(val + 1 < analogLastValue ||  (val != 0) && val - 1 > analogLastValue){
+  if(val + analogThreshold < analogLastValue ||  (val >= analogThreshold) && val - analogThreshold > analogLastValue){
     switchState(STATE_SELECTING);
+    analogLastValue = val;
   }
-  analogLastValue = val;
 }
 
 void doSelect(){
-  
   // Read and store value
   uint16_t val = 1023 - analogRead(4);
   selectedDev = val * nDevs / 1024;
   
-  if(val + 1 < analogLastValue || (val != 0) && val - 1 > analogLastValue){
+  if(val + analogThreshold < analogLastValue ||  (val >= analogThreshold) && val - analogThreshold > analogLastValue){
+    //Serial.println(val); Serial.println(analogLastValue);Serial.println("");
     analogLastMoved = millis();
     analogLastValue = val;
   }
   
   // Check for time threshold
   if(millis() - analogLastMoved >= analogTimeThreshold){
-    Serial.println(val);
     if(val == 0){
       switchState(STATE_IDLE);
       Serial.println("idle");
     } else{
-      switchState(STATE_REPLAYING);
       Serial.println(selectedDev);
+      switchState(STATE_REPLAYING);
     }
   }
   
@@ -272,11 +269,11 @@ void doSelect(){
     if(i < remaining){
       months.setPixelColor(i, 0);
     } else{
-      uint8_t dev = i / nLeds;
+      uint8_t dev = (i - remaining) / nLeds;
       if(dev == selectedDev && val != 0) {
         months.setPixelColor(i, illum(colors[dev], 255));
       } else{
-        months.setPixelColor(i, colors[dev]);
+        months.setPixelColor(i, illum(colors[dev], 50));
       }
     }
   }
@@ -286,8 +283,6 @@ void doSelect(){
 
 void setup() {
   Serial.begin(9600);
-  uint32_t test = 6528100;
-  Serial.println((test & (255)) );
    for (int i=0; i<4; i++){
     strips[i].begin();
     strips[i].setBrightness(BRIGHTNESS);
@@ -305,7 +300,6 @@ void setup() {
   weeks.setBrightness(BRIGHTNESS);
   weeks.show();
   analogLastValue = 1023 - analogRead(4);
-  analogLastChecked = millis();
   Serial.println("all set up");
 }
 
