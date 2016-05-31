@@ -58,7 +58,11 @@ uint8_t selectedDev;
 uint8_t currentState = STATE_IDLE;
 String inputString = "";
 unsigned long stateStart;
-uint8_t deltaT = 50;
+uint8_t DELTA_T = 50;
+uint8_t N_COMMIT_REPS = 5;
+uint8_t N_STEPS_RING = 40;
+unsigned long commitMaxTime;
+uint32_t nStepsPerRep;
 
 // Commits replay variables
 uint8_t timeIndex;
@@ -246,10 +250,49 @@ void receiveCommit(){
     singleCommit.ringIndex = nextCommit.substring(2,4).toInt();
     singleCommit.ringLength = nextCommit.substring(4,6).toInt();
     singleCommit.strength = nextCommit.substring(6,7).toInt() * 2;
+
+    // Set commit max time
+    nStepsPerRep = 14 + singleCommit.strength * 8 + N_STEPS_RING;
+    commitMaxTime = millis() + DELTA_T * N_COMMIT_REPS * nStepsPerRep;
 }
 
 void doCommit(){
+  // Check time
+  if(millis() > commitMaxTime){
+    switchState(STATE_IDLE);
+    return;
+  }
+
+  int cStep = (millis() - stateStart) / DELTA_T;
+  uint8_t localStep = cStep % nStepsPerRep;
+  
   // blink dev on ring
+  if(localStep > 14 + singleCommit.strength * 8){
+    uint16_t illumFactor = (cStep % 10) * 30 + 130;
+    if(illumFactor > 240){
+      illumFactor = 490 - illumFactor;
+    }
+    for(int i=singleCommit.ringIndex; i < singleCommit.ringIndex + singleCommit.ringLength; i++){
+      rings[singleCommitModule].setPixelColor(i, illum(colors[singleCommitDev], illumFactor));
+    }
+    rings[singleCommitModule].show();
+  } 
+  // show strip
+  else{
+    for(uint8_t i=0; i<11; i++){
+      if(true){
+        if((localStep - i % 8) / 3 == 0){
+          strips[singleCommitModule].setPixelColor(i, colors[singleCommitDev]);
+        } else {
+          strips[singleCommitModule].setPixelColor(i, 0);
+        }
+      } else{
+        strips[singleCommitModule].setPixelColor(i, 0);
+      }
+    }
+    strips[singleCommitModule].show();
+  }
+  /*
   uint16_t illumFactor = (millis() - stateStart + 510) / 2 % 300;
   if(illumFactor > 150){
     illumFactor = 300 - illumFactor;
@@ -259,6 +302,8 @@ void doCommit(){
     rings[singleCommitModule].setPixelColor(i, illum(colors[singleCommitDev], illumFactor));
   }
   rings[singleCommitModule].show();
+*/
+  // show strip
   /*
   int cStep = (millis() - stateStart) / deltaT;
   // Set strip
