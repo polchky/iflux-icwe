@@ -113,6 +113,11 @@ void switchState(int newState){
       analogLastMoved = millis();
       break;
     case STATE_RECEIVING:
+      for(uint8_t i=0; i<4; i++){
+        for(uint8_t j=0; j<48; j++){
+          commits[j][i] = 0;
+        }
+      }
       break;
     case STATE_REPLAYING:
       clearRing("months");
@@ -279,9 +284,7 @@ void doSelect(){
   if(millis() - analogLastMoved >= ANALOG_TIME_THRESHOLD){
     if(val == 0){
       switchState(STATE_IDLE);
-      Serial.println("idle");
     } else{
-      Serial.println(selectedDev);
       switchState(STATE_RECEIVING);
     }
   }
@@ -293,7 +296,6 @@ void doReceive(){
   if(illumFactor > 250){
     illumFactor = 500 - illumFactor;
   }
-  Serial.println(illumFactor);
   for (uint8_t i=selectedDev * ledsPerDev + remaining; i<(selectedDev + 1) * ledsPerDev + remaining; i++){
     months.setPixelColor(i, illum(colors[selectedDev], illumFactor, DEFAULT_BRIGHTNESS));
   }
