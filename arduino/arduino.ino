@@ -9,6 +9,8 @@ const char ORDER_DEV = 'd'; // used
 const char ORDER_RESET = 'x';
 const char ORDER_ADD = 'a';
 const char ORDER_COMMIT = 'c'; // used
+const char ORDER_COMMITS = 't'; // used
+const char ORDER_FINISHED = 'f'; // used
 
 const uint8_t STATE_IDLE = 0; // used
 const uint8_t STATE_COMMIT = 1; // used
@@ -18,6 +20,18 @@ const uint8_t STATE_RECEIVING = 4; // used
 
 int BRIGHTNESS = 100;
 int DEFAULT_BRIGHTNESS = 100;
+
+typedef struct
+{
+  uint8_t ringIndex: 5;
+  uint8_t ringLength: 5;
+  uint8_t strength: 4;
+} Commit;
+
+Commit commits[48][4];
+Commit singleCommit;
+uint8_t singleCommitDev;
+uint8_t singleCommitModule;
 
 Adafruit_NeoPixel rings[4] = {
   Adafruit_NeoPixel(24, 6, false, 5, NEO_GRB + NEO_KHZ800),
@@ -46,28 +60,20 @@ String inputString = "";
 unsigned long stateStart;
 uint8_t deltaT = 50;
 
-// Commit variables
-uint32_t commitColor;
-int commitModule;
-int commitRingIndex;
-int commitRingLength;
-int nCommits;
-unsigned long commitEndTime;
-
 // Commits replay variables
 uint8_t timeIndex;
-uint16_t commits[48][4];
 
 
 
-uint32_t colors[7] = {
+uint32_t colors[8] = {
   100,
   25600,
   6553600,
   25700,
   6553700,
   6579200,
-  6579300
+  6579300,
+  0
 };
 
 // Dev selection
@@ -77,6 +83,12 @@ uint8_t ANALOG_THRESHOLD = 10;
 unsigned long ANALOG_TIME_THRESHOLD = 1000;
 
 
+uint32_t illum(uint32_t color, uint8_t newBrightness, uint8_t oldBrightness = DEFAULT_BRIGHTNESS ){
+  return 
+    ((((color & (255 << 16)) >> 16) / oldBrightness * newBrightness) << 16) +
+    ((((color & (255 << 8)) >> 8) / oldBrightness * newBrightness) << 8) +
+    ((color & (255)) / oldBrightness * newBrightness) ;
+}
 
 void announceFaultyOrder(){
   Serial.println("resend");
@@ -96,15 +108,18 @@ String getInputStringNextPart(){
 }
 
 void switchState(int newState){
+  if(currentState == STATE_COMMIT){
+    for(uint8_t i=singleCommit.ringIndex; i < singleCommit.ringIndex + singleCommit.ringLength; i++){
+      rings[singleCommitModule].setPixelColor(i, colors[singleCommitDev]);
+    }
+    rings[singleCommitModule].show();
+  }
   switch (newState){
     case STATE_COMMIT:
       clearStrips();
-      commitColor = colors[getInputStringNextPart().toInt()];
-      commitModule = getInputStringNextPart().toInt();
-      commitRingIndex = getInputStringNextPart().toInt();
-      commitRingLength = getInputStringNextPart().toInt();
-      nCommits = getInputStringNextPart().toInt();
-      commitEndTime = 2;
+      clearRing("months");
+      clearRing("weeks");
+      receiveCommit();
       break;
     case STATE_SELECTING:
       clearStrips();
@@ -115,7 +130,6 @@ void switchState(int newState){
     case STATE_RECEIVING:
       for(uint8_t i=0; i<4; i++){
         for(uint8_t j=0; j<48; j++){
-          commits[j][i] = 0;
         }
       }
       break;
@@ -157,6 +171,12 @@ void executeOrder(){
       break;
     case ORDER_COMMIT:
       switchState(STATE_COMMIT);
+      break;
+    case ORDER_COMMITS:
+      storeCommits();
+      break;
+    case ORDER_FINISHED:
+      switchState(STATE_REPLAYING);
       break;
     default: 
       //announceFaultyOrder();
@@ -219,7 +239,27 @@ void clearStrips(){
   }
 }
 
+void receiveCommit(){
+    String nextCommit = getInputStringNextPart();
+    singleCommitDev = nextCommit.substring(0,1).toInt();
+    singleCommitModule = nextCommit.substring(1,2).toInt();
+    singleCommit.ringIndex = nextCommit.substring(2,4).toInt();
+    singleCommit.ringLength = nextCommit.substring(4,6).toInt();
+    singleCommit.strength = nextCommit.substring(6,7).toInt() * 2;
+}
+
 void doCommit(){
+  // blink dev on ring
+  uint16_t illumFactor = (millis() - stateStart + 510) / 2 % 300;
+  if(illumFactor > 150){
+    illumFactor = 300 - illumFactor;
+  }
+  illumFactor += 100;
+  for(int i=singleCommit.ringIndex; i < singleCommit.ringIndex + singleCommit.ringLength; i++){
+    rings[singleCommitModule].setPixelColor(i, illum(colors[singleCommitDev], illumFactor));
+  }
+  rings[singleCommitModule].show();
+  /*
   int cStep = (millis() - stateStart) / deltaT;
   // Set strip
   for (int i=0; i<strips[commitModule].numPixels(); i++){
@@ -231,15 +271,11 @@ void doCommit(){
   }
   strips[commitModule].show();
   // Set ring
+  */
   
 }
 
-uint32_t illum(uint32_t color, uint8_t newBrightness, uint8_t oldBrightness = DEFAULT_BRIGHTNESS ){
-  return 
-    ((((color & (255 << 16)) >> 16) / oldBrightness * newBrightness) << 16) +
-    ((((color & (255 << 8)) >> 8) / oldBrightness * newBrightness) << 8) +
-    ((color & (255)) / oldBrightness * newBrightness) ;
-}
+
 
 
 void checkAnalog(){
@@ -284,8 +320,10 @@ void doSelect(){
   if(millis() - analogLastMoved >= ANALOG_TIME_THRESHOLD){
     if(val == 0){
       switchState(STATE_IDLE);
+      //Serial.println("lol");
     } else{
       switchState(STATE_RECEIVING);
+      //Serial.println("relol");
     }
   }
   
@@ -297,14 +335,36 @@ void doReceive(){
     illumFactor = 500 - illumFactor;
   }
   for (uint8_t i=selectedDev * ledsPerDev + remaining; i<(selectedDev + 1) * ledsPerDev + remaining; i++){
-    months.setPixelColor(i, illum(colors[selectedDev], illumFactor, DEFAULT_BRIGHTNESS));
+    months.setPixelColor(i, illum(colors[selectedDev], illumFactor));
   }
   months.show();
 }
 
+void storeCommits(){
+  Serial.println("ok");
+  do{
+    String nextCommit = getInputStringNextPart();
+    uint8_t module = nextCommit.substring(0,1).toInt();
+    uint8_t week = nextCommit.substring(1,3).toInt();
+    uint8_t ringIndex = nextCommit.substring(3,5).toInt();
+    uint8_t ringLength = nextCommit.substring(5,7).toInt();
+    uint8_t commitStrength = nextCommit.substring(7,8).toInt() * 2;
+    commits[week][module].ringIndex = ringIndex;
+    commits[week][module].ringLength = ringLength;
+    commits[week][module].strength = commitStrength;
+  } while(inputString.length() > 0);
+}
+
+void doReplay(){
+  
+}
+
 void setup() {
+  
   Serial.begin(9600);
-   for (int i=0; i<4; i++){
+  while(!Serial);
+  Serial.println("all set up");
+  for (int i=0; i<4; i++){
     strips[i].begin();
     strips[i].setBrightness(BRIGHTNESS);
     strips[i].show();
@@ -321,7 +381,6 @@ void setup() {
   weeks.setBrightness(BRIGHTNESS);
   weeks.show();
   analogLastValue = 1023 - analogRead(4);
-  Serial.println("all set up");
 }
 
 void loop() {
@@ -336,6 +395,9 @@ void loop() {
       break;
     case STATE_RECEIVING:
       doReceive();
+      break;
+    case STATE_REPLAYING:
+      doReplay();
       break;
     default:
       break;
