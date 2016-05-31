@@ -60,7 +60,7 @@ String inputString = "";
 unsigned long stateStart;
 uint8_t DELTA_T = 50;
 uint8_t N_COMMIT_REPS = 5;
-uint8_t N_STEPS_RING = 40;
+uint8_t N_STEPS_RING = 30;
 unsigned long commitMaxTime;
 uint32_t nStepsPerRep;
 
@@ -249,10 +249,10 @@ void receiveCommit(){
     singleCommitModule = nextCommit.substring(1,2).toInt();
     singleCommit.ringIndex = nextCommit.substring(2,4).toInt();
     singleCommit.ringLength = nextCommit.substring(4,6).toInt();
-    singleCommit.strength = nextCommit.substring(6,7).toInt() * 2;
+    singleCommit.strength = nextCommit.substring(6,7).toInt();
 
     // Set commit max time
-    nStepsPerRep = 14 + singleCommit.strength * 8 + N_STEPS_RING;
+    nStepsPerRep = 5 + singleCommit.strength * 8 + N_STEPS_RING;
     commitMaxTime = millis() + DELTA_T * N_COMMIT_REPS * nStepsPerRep;
 }
 
@@ -267,9 +267,10 @@ void doCommit(){
   uint8_t localStep = cStep % nStepsPerRep;
   
   // blink dev on ring
-  if(localStep > 14 + singleCommit.strength * 8){
-    uint16_t illumFactor = (cStep % 10) * 30 + 130;
-    if(illumFactor > 240){
+  if(localStep > 5 + singleCommit.strength * 8){
+    localStep -= 5 + singleCommit.strength * 8 + 1;
+    uint16_t illumFactor = (localStep % 10) * 30 + 130;
+    if(illumFactor > 250){
       illumFactor = 490 - illumFactor;
     }
     for(int i=singleCommit.ringIndex; i < singleCommit.ringIndex + singleCommit.ringLength; i++){
@@ -280,13 +281,9 @@ void doCommit(){
   // show strip
   else{
     for(uint8_t i=0; i<11; i++){
-      if(true){
-        if((localStep - i % 8) / 3 == 0){
-          strips[singleCommitModule].setPixelColor(i, colors[singleCommitDev]);
-        } else {
-          strips[singleCommitModule].setPixelColor(i, 0);
-        }
-      } else{
+      if(((localStep - i) % 8) / 3 == 0 && i <= localStep && localStep < singleCommit.strength * 8 + i){
+        strips[singleCommitModule].setPixelColor(i, colors[singleCommitDev]);
+      } else {
         strips[singleCommitModule].setPixelColor(i, 0);
       }
     }
