@@ -492,7 +492,8 @@ void doReplay(){
         // Show strip
         for(int i=0; i<11; i++){
           if(i <= localStep / 2 && i > localStep / 2 - 3){
-            strips[j].setPixelColor(i, illum(colors[selectedDev], illumStripFactor));
+            strips[j].setPixelColor(i, colors[selectedDev]);
+            //strips[j].setPixelColor(i, illum(colors[selectedDev], illumStripFactor));
           } else{
             strips[j].setPixelColor(i, 0);
           }
@@ -534,6 +535,7 @@ void setup() {
   analogLastValue = 1023 - analogRead(4);
   clearCommits();
   Serial.println("hi");
+  Serial.println("rings");
 }
 
 void loop() {
