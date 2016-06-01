@@ -36,12 +36,13 @@ const uint8_t DELTA_T = 50;
 const uint8_t N_STEPS_IDLE = 10;
 const uint8_t N_STEPS_COMMITS = 30;
 
-Commit commits[48][4];
 unsigned long lastWeekChanged;
 uint8_t weeksIndex;
 bool activeWeek;
 uint8_t weeksOffset;
 uint8_t lastActiveWeek;
+
+Commit commits[48][4];
 
 Commit singleCommit;
 uint8_t singleCommitDev;
@@ -93,7 +94,7 @@ const uint32_t WHITE = 100 << 16 | 100 << 8 | 100;
 // Dev selection
 uint16_t analogLastValue;
 unsigned long analogLastMoved;
-uint8_t ANALOG_THRESHOLD = 10;
+uint8_t ANALOG_THRESHOLD = 50;
 unsigned long ANALOG_TIME_THRESHOLD = 1000;
 
 

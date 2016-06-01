@@ -8,12 +8,34 @@ var httpPort = 3030;
 var arduinoSerialPort;
 
 var order;
-var response;
+var response = 1;
 
-var developers = [
-
-
+var nRingPixels = [
+	[0,3,2,6,3,2,8],
+	[4,6,2,0,0,6,6],
+	[7,0,0,3,7,3,4],
+	[5,2,3,5,3,3,3]
 ];
+
+function getPixelsStart(module, dev){
+	var tot = 0;
+	for(i=0; i<dev; i++){
+		tot += nRingPixels[module][i];
+	}
+	return tot;
+}
+
+function setRings(){
+	var ring = "3/";
+	var currentDev = 0;
+	for(i=0; i<24; i++){
+		if(currentDev < 6 && getPixelsStart(3,currentDev + 1) <= i){
+			currentDev++;
+		}
+		ring += currentDev;
+	}
+	sendData(ring);
+}
 
 function arduinoSerialOpened() {
 	console.log("Arduino serial communication opened on port " + arduinoSerialPort);
@@ -22,15 +44,16 @@ function arduinoSerialOpened() {
 function sendData(data){
 	order = "l" + (data.length) + "/" + data + "/";
 	response == -1;
+	console.log(order);
 	arduinoSerial.write(order);
-	console.log("data sent");
 }
 
 function arduinoSerialData(data) {
 	data = data.substr(0, data.length - 1);
+	console.log(data);
 	switch(data){
 		case "rings":
-		sendData("r/3/000000000000000000000011");
+		setRings();
 			break;
 		case "ok":
 			response == 1;
@@ -40,7 +63,9 @@ function arduinoSerialData(data) {
 			arduinoSerial.write(order);
 			break;
 		case "commits":
-			console.log("commit, lol");
+			break;
+		default:
+			break;
 		}
 }
 
@@ -56,6 +81,7 @@ serialport.list(function (err, ports) {
 		process.exit();
 	}
 	arduinoSerialPort = ports[0].comName;
+	console.log(arduinoSerialPort);
 	arduinoSerial = new SerialPort( arduinoSerialPort, {
 		baudRate: 9600,
 		parser: serialport.parsers.readline("\n")
