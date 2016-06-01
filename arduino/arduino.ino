@@ -46,7 +46,7 @@ uint8_t lastActiveWeek;
 Commit singleCommit;
 uint8_t singleCommitDev;
 uint8_t singleCommitModule;
-const uint8_t N_COMMIT_REPS = 5;
+const uint8_t N_COMMIT_REPS = 4;
 unsigned long commitMaxTime;
 uint32_t nStepsPerRep;
 
@@ -153,8 +153,7 @@ void switchState(int newState){
       analogLastMoved = millis();
       break;
     case STATE_RECEIVING:
-      Serial.println("commits");
-      Serial.println(selectedDev);
+      Serial.println("commits/" + String(selectedDev));
       weeksOffset = 0;
       clearCommits();
       break;
@@ -232,7 +231,9 @@ void executeOrder(){
       remaining = months.numPixels() - (ledsPerDev * nDevs);
       break;
     case ORDER_COMMIT:
-      switchState(STATE_COMMIT);
+      if(currentState != STATE_SELECTING && currentState != STATE_REPLAYING && currentState != STATE_COMMIT){
+          switchState(STATE_COMMIT);
+      }
       break;
     case ORDER_COMMITS:
       storeCommits();
@@ -469,6 +470,7 @@ void getNextWeek(){
 }
 
 void doReplay(){
+  uint16_t illumStripFactor;
   localStep = (millis() - lastWeekChanged) / DELTA_T;
   if(activeWeek){
     if(localStep < N_STEPS_COMMITS){
@@ -477,6 +479,7 @@ void doReplay(){
         illumFactor = 490 - illumFactor;
       }
       for(int j=0; j<4; j++){
+        illumStripFactor = (illumFactor - 100 ) / 7 * commits[weeksIndex][j].strength + 100;
         if(commits[weeksIndex][j].strength == 0) continue;
         
         // Show ring
@@ -488,7 +491,7 @@ void doReplay(){
         // Show strip
         for(int i=0; i<11; i++){
           if(i <= localStep / 2 && i > localStep / 2 - 3){
-            strips[j].setPixelColor(i, colors[selectedDev]);
+            strips[j].setPixelColor(i, illum(colors[selectedDev], illumStripFactor));
           } else{
             strips[j].setPixelColor(i, 0);
           }
