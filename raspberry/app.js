@@ -9,9 +9,12 @@ var arduinoSerialPort;
 
 function arduinoSerialOpened() {
 	console.log("Arduino serial communication opened on port " + arduinoSerialPort);
+	arduinoSerial.write("l28/r/3/000000111122223333444455/");
 }
 
-function arduinoSerialData(data) {}
+function arduinoSerialData(data) {
+		console.log(data);
+}
 
 function arduinoSerialClosed() {}
 

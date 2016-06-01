@@ -261,6 +261,7 @@ void checkSerial() {
   if (Serial.available()) {
     inputString = Serial.readStringUntil('\n');
     if(checkInputString() == true){
+      Serial.println("ok");
       executeOrder();
     } else {
       announceFaultyOrder();
@@ -415,7 +416,6 @@ void doReceive(){
 }
 
 void storeCommits(){
-  Serial.println("ok");
   do{
     String nextCommit = getInputStringNextPart();
     uint8_t module = nextCommit.substring(0,1).toInt();
@@ -529,7 +529,7 @@ void setup() {
   weeks.show();
   analogLastValue = 1023 - analogRead(4);
   clearCommits();
-  Serial.println("all set up");
+  Serial.println("hi");
 }
 
 void loop() {
