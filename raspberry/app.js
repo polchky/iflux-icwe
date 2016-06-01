@@ -7,13 +7,41 @@ var app = express();
 var httpPort = 3030;
 var arduinoSerialPort;
 
+var order;
+var response;
+
+var developers = [
+
+
+];
+
 function arduinoSerialOpened() {
 	console.log("Arduino serial communication opened on port " + arduinoSerialPort);
-	arduinoSerial.write("l28/r/3/000000111122223333444455/");
+}
+
+function sendData(data){
+	order = "l" + (data.length) + "/" + data + "/";
+	response == -1;
+	arduinoSerial.write(order);
+	console.log("data sent");
 }
 
 function arduinoSerialData(data) {
-		console.log(data);
+	data = data.substr(0, data.length - 1);
+	switch(data){
+		case "rings":
+		sendData("r/3/000000000000000000000011");
+			break;
+		case "ok":
+			response == 1;
+			break;
+		case "resend":
+			console.log("resend");
+			arduinoSerial.write(order);
+			break;
+		case "commits":
+			console.log("commit, lol");
+		}
 }
 
 function arduinoSerialClosed() {}
