@@ -6,6 +6,8 @@ import random
 orders = [0 for i in range(20)]
 lastOrderOk = 1
 lastRandomCommit = time.time()
+noRandomCommitBefore = time.time() + 10
+busy = 0
 
 ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
 nDevs = 5
@@ -52,12 +54,14 @@ def findDevPos(dev, module):
 	return pos
 
 def sendRings():
+	global busy
 	for module in range(4):
 		order = "r/" + str(module) + "/"
 		for dev in range(nDevs):
 			for pos in range(rings[module][dev]):
 				order += str(dev)
 		addOrder(order)
+	busy = 0
 		
 def addOrder(order):
 	global orders
@@ -76,6 +80,7 @@ def nextOrderIndex():
 
 def createCommitPerhaps():
 	global lastRandomCommit
+	global noRandomCommitBefore
 	if time.time() - lastRandomCommit > 10:
 		lastRandomCommit = time.time()
 		dev = random.randint(0,4)
@@ -87,14 +92,36 @@ def createCommitPerhaps():
 			+ "%02d" % findDevPos(dev, module)
 			+ "01"
 			+ str(strength))
+		noRandomCommitBefore = time.time() + 3 + 4 * (5 + strength * 8 + 30)/ 10
 	
 def sendCommits(dev):
+	global busy
 	newOrders = [
-		"t/30000037/30103035/30406045"
+		
+		"t/00000017/00101035/00404025",
+		"t/00506017/00607015/00707015",
+		"t/00808027/01008015/01109015",
+		"t/01210057/01315035/01418045",
+		
+		"t/10000017/10101035/10404025",
+		"t/10506017/10607015/10707015",
+		"t/10808027/11008015/11109015",
+		"t/11210057/11315035/11418045",
+		
+		"t/20000017/20101035/20404025",
+		"t/20506017/20607015/20707015",
+		"t/20808027/21008015/21109015",
+		"t/21210057/21315035/21418045",
+		
+		"t/30000017/30101035/30404025",
+		"t/30506017/30607015/30707015",
+		"t/30808027/31008015/31109015",
+		"t/31210057/31315035/31418045"
 	]
 	for newOrder in newOrders:
 		addOrder(newOrder)
 	addOrder("f")
+	busy = 1
 
 def ordersEmpty():
 	global orders
@@ -121,12 +148,14 @@ while 1:
 		elif data == "rings":
 			sendRings()
 		elif len(data) == 9 and data[:7] == "commits":
+			busy = 1
 			sendCommits(data[8:])
+			
 	# Send next order
 	if lastOrderOk == 1:
 		sendNextOrder()
 	# send random commit
-	if ordersEmpty():
+	if ordersEmpty() and time.time() > noRandomCommitBefore and not busy:
 		createCommitPerhaps()
 		
 		
