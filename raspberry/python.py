@@ -75,13 +75,12 @@ def nextOrderIndex():
 	return -1
 
 def createCommitPerhaps():
-	return
 	global lastRandomCommit
 	if time.time() - lastRandomCommit > 10:
 		lastRandomCommit = time.time()
 		dev = random.randint(0,4)
 		module = 3 
-		strength = random.randint(0,6)
+		strength = random.randint(1,7)
 		addOrder("c/" 
 			+ str(dev) 
 			+ str(module) 
