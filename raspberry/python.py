@@ -8,8 +8,20 @@ lastOrderOk = 1
 lastRandomCommit = time.time()
 noRandomCommitBefore = time.time() + 10
 busy = 0
+connected = 0
+ser = 0
 
-ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
+def openSerial():
+	global ser
+	global connected
+	while connected == 0:
+		try:
+			ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
+			connected = 1
+			print "serial port opened"
+		except serial.SerialException:
+			time.sleep(2)
+
 nDevs = 5
 rings = [
 	[3,6,3,8,4],
@@ -65,7 +77,7 @@ def sendRings():
 		
 def addOrder(order):
 	global orders
-	for i in range(len(orders), 0, -1):
+	for i in range(len(orders) - 1, 0, -1):
 		if not orders[i - 1] == 0:
 			orders[i] = order
 			return
@@ -130,12 +142,28 @@ def ordersEmpty():
 			return 0
 	return 1
 	
+def readSerial
+		
+openSerial()
 addOrder("d/5")
 sendRings()
 	
-while 1:
+	
+
+	
+while True:
 	# Read data
-	data = ser.readline()
+	try:
+		data = ser.readline()
+	except serial.SerialException:
+		print "exception"
+		connected = 0
+		openSerial()
+		continue
+	except TypeError:
+		print "typeError"
+		connected = 0
+		openSerial()
 	time.sleep(0.05)
 	if len(data) > 3:
 		data = data[:-2]
@@ -157,7 +185,7 @@ while 1:
 	# send random commit
 	if ordersEmpty() and time.time() > noRandomCommitBefore and not busy:
 		createCommitPerhaps()
-		
+
 		
 	
 	

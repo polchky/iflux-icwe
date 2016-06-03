@@ -95,7 +95,7 @@ const uint32_t WHITE = 100 << 16 | 100 << 8 | 100;
 uint16_t analogLastValue;
 unsigned long analogLastMoved;
 uint8_t ANALOG_THRESHOLD = 50;
-unsigned long ANALOG_TIME_THRESHOLD = 1000;
+unsigned long ANALOG_TIME_THRESHOLD = 5000;
 
 
 uint32_t illum(uint32_t color, uint8_t newBrightness, uint8_t oldBrightness = DEFAULT_BRIGHTNESS ){
