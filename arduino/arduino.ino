@@ -33,7 +33,7 @@ typedef struct
 uint8_t localStep;
 const uint8_t N_STEPS_RING = 30;
 const uint8_t DELTA_T = 50;
-const uint8_t N_STEPS_IDLE = 10;
+const uint8_t N_STEPS_IDLE = 30;
 const uint8_t N_STEPS_COMMITS = 30;
 
 unsigned long lastWeekChanged;
@@ -160,6 +160,7 @@ void switchState(int newState){
       break;
     case STATE_REPLAYING:
       clearRing("months");
+      clearRings();
       weeksIndex = 0;
       if(!findNextActiveWeek()){
         switchState(STATE_IDLE);
@@ -535,7 +536,7 @@ void setup() {
   analogLastValue = 1023 - analogRead(4);
   clearCommits();
   Serial.println("hi");
-  Serial.println("rings");
+  //Serial.println("rings");
 }
 
 void loop() {
